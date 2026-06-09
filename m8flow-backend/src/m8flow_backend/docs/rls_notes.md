@@ -44,14 +44,25 @@ Background jobs and async workers must set a tenant context before queries or wr
 In Python, use m8flow_backend.tenancy.set_context_tenant_id(...) around the job.
 
 PostgreSQL strict mode
-The ORM now sets the tenant context per transaction using:
+The ORM sets the tenant context per transaction when a concrete tenant is available:
 ```sql
   SET LOCAL app.current_tenant = '<tenant_id>'
 ```
-and raises if the tenant is missing. To allow admin/migration workflows without a tenant:
-  M8FLOW_ALLOW_MISSING_TENANT_CONTEXT=true
-When missing is allowed, the session executes:
-  RESET app.current_tenant
+
+When no concrete tenant is available yet, the PostgreSQL session variable is not
+set for that transaction. Protected request handling still remains fail-closed:
+tenant-scoped routes and jobs must resolve an explicit tenant context before
+tenant-scoped reads or writes can proceed.
+
+Master realm super-admin (global operator)
+- M8Flow supports a Keycloak `master` realm `super-admin` user for cross-tenant visibility.
+- For this principal, request-level tenant scoping is bypassed intentionally so the user can
+  query/view tenant-scoped data across tenants.
+- PostgreSQL RLS uses `SET LOCAL app.bypass_rls = 'on'` for these sessions, but **bypass is SELECT-only**.
+  INSERT/UPDATE/DELETE still require `app.current_tenant` to match `m8f_tenant_id`, so super-admin
+  remains read-only across tenant data even if an application-layer guard is missed.
+- Keep this role tightly controlled; it is equivalent to platform-level read access.
+- Normal tenant users remain tenant-scoped and continue to require tenant context.
 
 Non-PostgreSQL databases
 MySQL/SQLite rely on ORM filtering only (no DB-level RLS enforcement).

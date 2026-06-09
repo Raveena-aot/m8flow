@@ -1,6 +1,7 @@
-{
+﻿{
   "all_categories": "Kaikki kategoriat",
   "all_tags": "Kaikki tunnisteet",
+  "back_to_configuration": "Takaisin asetuksiin",
   "back_to_templates": "Takaisin malleihin",
   "card_view": "Korttinäkymä",
   "category": "Kategoria",
@@ -79,7 +80,9 @@
   "delete_tenant": "Poista vuokralainen",
   "are_you_sure_you_want_to_delete_tenant": "Haluatko varmasti poistaa vuokralaisen",
   "action_cannot_be_undone": "Tätä toimintoa ei voi kumota.",
-  "realm_slug": "Realm Slug",
+  "delete_secret_title": "Poistetaanko salaisuus?",
+  "delete_secret_confirm": "Haluatko varmasti poistaa salaisuuden \"{{name}}\"?",
+  "realm_slug": "Vuokralaisen alias",
   "display_name": "Näyttönimi",
   "cancel": "Peruuttaa",
   "delete": "Poistaa",
@@ -101,5 +104,6 @@
   "delete_failed": "Poistaminen epäonnistui",
   "download_failed": "Lataus epäonnistui",
   "new_draft_created_redirecting": "Uusi luonnosversio ({{version}}) luotiin, koska malli julkaistiin. Uudelleenohjataan...",
-  "updated": "Päivitetty"
+  "updated": "Päivitetty",
+  "tasks": "Tehtävät"
 }

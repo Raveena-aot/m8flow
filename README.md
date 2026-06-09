@@ -125,29 +125,18 @@ docker compose --profile init -f docker/m8flow-docker-compose.yml up -d --build
 docker compose -f docker/m8flow-docker-compose.yml up -d --build
 ```
 
-Once started, open [http://localhost:6841/](http://localhost:6841/) in your browser to access m8flow.
+### Once started, open [http://localhost:6841/](http://localhost:6841/) in your browser to access m8flow.
 ---
 
 ## Signing In — Application Usage
 
-1. **Tenant Selection:**  
-   When you visit the application, you'll be prompted to select or enter your tenant slug. By default, the tenant `m8flow` will be available for you to use.
-
-   <div align="center">
-       <img src="./docs/images/access-m8flow-tenant-selection.png" />
-   </div>
-
-2. **Log In:**  
-   After choosing your tenant, you'll be redirected to the login page.
-
+1. **Log In:**  
    <div align="center">
        <img src="./docs/images/access-m8flow-1.png" />
    </div>
 
-
 <a id="try-the-default-test-users"></a>
-3. **Try the Default Test Users:**  
-   Each tenant (including tenants you add later) is provisioned with these default test users.
+2. **Try the Default Test Users:**  
 
    | Username     | Role                                  |
    |--------------|---------------------------------------|
@@ -161,7 +150,13 @@ Once started, open [http://localhost:6841/](http://localhost:6841/) in your brow
    **Password:** the initial password for each user is the **same as the username** (for example `admin` / `admin`). Passwords are imported as **temporary** in Keycloak, so users are prompted for a **password change on first login**.
 
 
-You’re all set! Continue with [Tenant creation](#tenant-creation) to add your own tenants or explore the rich features of m8flow.
+You’re all set! Continue with [How to use m8flow](#how-to-use-m8flow) to create your first process group, or go to [Tenant creation](#tenant-creation) to add your own tenants.
+
+---
+
+## How to use m8flow
+
+After signing in, follow the [How to use m8flow](docs/how-to-use.md) guide to create your first process group and start organizing process models.
 
 ---
 
@@ -171,12 +166,17 @@ You’re all set! Continue with [Tenant creation](#tenant-creation) to add your 
    Go to [http://localhost:6841/](http://localhost:6841/) in your web browser.
 
 2. **Sign in as Global Admin:**  
-   Click on **"Global admin sign in"**.  
+   Click on **"Platform admin sign in"**.  
    <div align="center">
-      <img src="./docs/images/access-m8flow-tenant-selection.png" alt="Tenant Selection Screen"/>
+       <img src="./docs/images/access-m8flow-1.png" />
    </div>
 
-   Log in using the following credentials:
+
+   Then Log in using the following credentials:
+   <div align="center">
+       <img src="./docs/images/access-m8flow-super-admin-1.png" />
+   </div>
+
    ```
    Username: super-admin
    Password: super-admin
@@ -189,7 +189,24 @@ You’re all set! Continue with [Tenant creation](#tenant-creation) to add your 
         <img src="./docs/images/tenant-creation.png" alt="Tenant Creation Screen"/>
     </div>
 
-Once your tenant is created, it will automatically include the set of default test users described above in [Try the Default Test Users](#try-the-default-test-users).
+<a id="adding-users-to-a-tenant"></a>
+### Adding a user to a tenant
+
+1. Ensure the person already has a Keycloak account (created in the **Keycloak** Admin Console or via **self-registration** on the m8flow sign-in page, when enabled).
+2. Open **Tenant Management** and click **Manage Tenant Groups** for the tenant.
+
+<div align="center">
+        <img src="./docs/images/manage-tenant-group-btn.png" alt="Tenant Creation Screen"/>
+</div>
+
+3. Click **+ Add User** and select the existing user to add them to the tenant.
+4. In the **Members** table, assign group membership (Administrators, Designers, Viewers, and so on).
+5. In the **Groups** table, review which tenant-scoped roles each group grants (Tenant Admin, Editor, Integrator, Reviewer, Submitter, Viewer).
+
+   <div align="center">
+       <img src="./docs/images/tenant-group-management.png" alt="Manage Tenant Groups"/>
+   </div>
+
 ---
 
 ## Docker Compose services

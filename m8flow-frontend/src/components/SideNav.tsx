@@ -35,6 +35,7 @@ import {
   Flag,
   Description,
   Hub,
+  Business,
 } from "@mui/icons-material";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -79,6 +80,7 @@ const routeIdentifiers = {
   CONFIGURATION: "configuration",
   CONNECTORS: "connectors",
   TEMPLATES: "templates",
+  TENANT_MANAGEMENT: "tenantManagement",
 };
 
 function SideNav({
@@ -103,8 +105,9 @@ function SideNav({
     [targetUris.processInstanceListPath]: ["GET"],
     [targetUris.processInstanceListForMePath]: ["POST"],
     [targetUris.secretListPath]: ["GET"],
-    [targetUris.serviceTaskListPath]: ["GET"],
-    "/tasks/*": ["PUT"],
+    [targetUris.connectorsPath]: ["GET"],
+    "/tasks/*": ["GET", "PUT"],
+    [targetUris.m8flowTenantManagementPath]: ["GET"],
     "/m8flow/tenants": ["GET"],
     "/m8flow/templates": ["GET"],
   };
@@ -128,6 +131,8 @@ function SideNav({
     selectedTab = routeIdentifiers.CONNECTORS;
   } else if (location.pathname.startsWith("/templates")) {
     selectedTab = routeIdentifiers.TEMPLATES;
+  } else if (location.pathname.startsWith("/tenant-management")) {
+    selectedTab = routeIdentifiers.TENANT_MANAGEMENT;
   }
 
   const versionInfo = appVersionInfo();
@@ -141,7 +146,7 @@ function SideNav({
   }
   const userEmail = UserService.getUserEmail();
   const username = UserService.getPreferredUsername();
-  const tenantId = UserService.getTenantName();
+  const [tenantId, setTenantId] = useState<string | null>(() => UserService.getTenantName());
   let externalDocumentationUrl = "https://spiff-arena.readthedocs.io";
   if (DOCUMENTATION_URL) {
     externalDocumentationUrl = DOCUMENTATION_URL;
@@ -183,6 +188,25 @@ function SideNav({
 
     return () => {
       window.removeEventListener("click", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    const syncTenantName = () => {
+      setTenantId(UserService.getTenantName());
+    };
+
+    syncTenantName();
+    window.addEventListener(
+      UserService.TENANT_DISPLAY_NAME_UPDATED_EVENT,
+      syncTenantName,
+    );
+
+    return () => {
+      window.removeEventListener(
+        UserService.TENANT_DISPLAY_NAME_UPDATED_EVENT,
+        syncTenantName,
+      );
     };
   }, []);
 
@@ -239,7 +263,7 @@ function SideNav({
       icon: <Hub />,
       route: "/connectors",
       id: routeIdentifiers.CONNECTORS,
-      permissionRoutes: [targetUris.serviceTaskListPath],
+      permissionRoutes: [targetUris.connectorsPath],
     },
     {
       text: t("templates"),
@@ -247,6 +271,13 @@ function SideNav({
       route: "/templates",
       id: routeIdentifiers.TEMPLATES,
       permissionRoutes: ["/m8flow/templates"],
+    },
+    {
+      text: t("tenant_management"),
+      icon: <Business />,
+      route: "/tenant-management",
+      id: routeIdentifiers.TENANT_MANAGEMENT,
+      permissionRoutes: [targetUris.m8flowTenantManagementPath],
     },
   ];
 
@@ -295,6 +326,13 @@ function SideNav({
       return true;
     }
 
+    if (item.id === routeIdentifiers.HOME) {
+      return (
+        ability.can("PUT", "/tasks/*") ||
+        (UserService.isSuperAdmin() && ability.can("GET", "/tasks/*"))
+      );
+    }
+
     let hasPermission = false;
     item.permissionRoutes?.forEach((targetUri: string) => {
       let method = "GET";
@@ -338,6 +376,29 @@ function SideNav({
                 <MuiLink component={Link} to="/" data-testid="nav-logo-link">
                   <SpiffLogo />
                 </MuiLink>
+                {tenantId && (
+                  <Box
+                    data-testid="nav-tenant-name"
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      mt: 0.5,
+                      paddingLeft: "8px",
+                      color: "text.secondary",
+                    }}
+                  >
+                    <Business sx={{ fontSize: "1rem" }} />
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 600,
+                      }}
+                    >
+                      {t("tenant")}: {tenantId}
+                    </Typography>
+                  </Box>
+                )}
               </Box>
             )}
             <IconButton
@@ -512,7 +573,6 @@ function SideNav({
                 data-testid="nav-tenant-id"
                 sx={{
                   color: "text.secondary",
-                  textTransform: "capitalize",
                   fontWeight: 600,
                   mt: 0.5,
                 }}

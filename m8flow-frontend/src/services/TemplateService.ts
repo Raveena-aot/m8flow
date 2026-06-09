@@ -63,8 +63,16 @@ function secondsFromApiOrIso(seconds: unknown, iso: unknown): number {
 }
 
 function parseTemplateResponse(data: Record<string, unknown>): Template {
-  const createdAtInSeconds = secondsFromApiOrIso(data.createdAtInSeconds, data.createdAt);
-  const updatedAtInSeconds = secondsFromApiOrIso(data.updatedAtInSeconds, data.updatedAt);
+  // Support both camelCase (createdAtInSeconds) and snake_case (created_at_in_seconds)
+  // that the backend may return, plus ISO string fallbacks (createdAt/updatedAt).
+  const createdAtInSeconds = secondsFromApiOrIso(
+    data.createdAtInSeconds ?? data.created_at_in_seconds,
+    data.createdAt
+  );
+  const updatedAtInSeconds = secondsFromApiOrIso(
+    data.updatedAtInSeconds ?? data.updated_at_in_seconds,
+    data.updatedAt
+  );
   return {
     ...data,
     files: (data.files as TemplateFile[]) ?? [],
@@ -274,7 +282,7 @@ const TemplateService = {
   },
 
   /**
-   * Soft-delete a template by ID. Uses auth headers. Template must not be published.
+   * Delete template by ID. Draft templates are hard-deleted; published templates are soft-deleted.
    */
   deleteTemplate(id: number): Promise<void> {
     const url = backendPath(`${BASE_PATH}/templates/${id}`);
@@ -285,6 +293,21 @@ const TemplateService = {
     }).then((r) => {
       if (!r.ok) throw new Error("Delete failed");
     });
+  },
+
+  /**
+   * Restore a soft-deleted template by ID.
+   */
+  restoreTemplate(id: number): Promise<Template> {
+    const url = backendPath(`${BASE_PATH}/templates/${id}/restore`);
+    return fetch(url, {
+      method: "POST",
+      credentials: "include",
+      headers: new Headers(HttpService.getBasicHeaders()),
+    }).then((r) => {
+      if (!r.ok) throw new Error("Restore failed");
+      return r.json();
+    }).then((data: Record<string, unknown>) => parseTemplateResponse(data));
   },
 
   /**

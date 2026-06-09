@@ -1,6 +1,7 @@
-{
+﻿{
   "all_categories": "所有类别",
   "all_tags": "所有标签",
+  "back_to_configuration": "返回配置",
   "back_to_templates": "返回模板",
   "card_view": "卡片视图",
   "category": "类别",
@@ -79,7 +80,9 @@
   "delete_tenant": "删除租户",
   "are_you_sure_you_want_to_delete_tenant": "您确定要删除该租户",
   "action_cannot_be_undone": "此操作无法撤销。",
-  "realm_slug": "租户标识 (Slug)",
+  "delete_secret_title": "删除密钥？",
+  "delete_secret_confirm": "您确定要删除密钥 \"{{name}}\" 吗？",
+  "realm_slug": "租户别名",
   "display_name": "显示名称",
   "cancel": "取消",
   "delete": "删除",
@@ -101,5 +104,6 @@
   "delete_failed": "删除失败",
   "download_failed": "下载失败",
   "new_draft_created_redirecting": "由于模板已发布，已创建一个新的草稿版本 ({{version}})。正在重定向...",
-  "updated": "已更新"
+  "updated": "已更新",
+  "tasks": "任务"
 }

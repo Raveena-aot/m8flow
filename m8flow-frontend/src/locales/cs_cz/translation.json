@@ -1,6 +1,7 @@
-{
+﻿{
   "all_categories": "Všechny kategorie",
   "all_tags": "Všechny štítky",
+  "back_to_configuration": "Zpět na Konfiguraci",
   "back_to_templates": "Zpět na Šablony",
   "card_view": "Zobrazení karet",
   "category": "Kategorie",
@@ -79,7 +80,9 @@
   "delete_tenant": "Smazat nájemce",
   "are_you_sure_you_want_to_delete_tenant": "Opravdu chcete odstranit tenanta?",
   "action_cannot_be_undone": "Tuto akci nelze vrátit zpět.",
-  "realm_slug": "Realm Slug",
+  "delete_secret_title": "Smazat tajný klíč?",
+  "delete_secret_confirm": "Opravdu chcete smazat tajný klíč \"{{name}}\"?",
+  "realm_slug": "Alias nájemce",
   "display_name": "Zobrazovaný název",
   "cancel": "Zrušit",
   "delete": "Vymazat",
@@ -101,5 +104,6 @@
   "delete_failed": "Smazání se nezdařilo",
   "download_failed": "Stahování se nezdařilo",
   "new_draft_created_redirecting": "Byla vytvořena nová verze konceptu ({{version}}), protože šablona byla publikována. Přesměrování...",
-  "updated": "Aktualizováno"
+  "updated": "Aktualizováno",
+  "tasks": "Úkoly"
 }

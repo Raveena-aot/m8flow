@@ -8,9 +8,23 @@ import {
   CardActions,
   Chip,
   Box,
+  Tooltip,
+  IconButton,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
+import {
+  MoreVert,
+  Edit,
+  ContentCopy,
+  FileDownload,
+  Delete,
+  Restore,
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { PointerEvent } from 'react';
+import { useState, PointerEvent, MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TimeAgo } from '@spiffworkflow-frontend/helpers/timeago';
 import DateAndTimeService from '@spiffworkflow-frontend/services/DateAndTimeService';
@@ -20,6 +34,16 @@ interface TemplateCardProps {
   template: Template;
   onUseTemplate?: () => void;
   onViewTemplate?: () => void;
+  showTenantContext?: boolean;
+  onDeleteTemplate?: () => void;
+  onRestoreTemplate?: () => void;
+  onEditTemplate?: () => void;
+  onDuplicateTemplate?: () => void;
+  onExportTemplate?: () => void;
+  deleteDisabled?: boolean;
+  deleteDisabledReason?: string;
+  restoreDisabled?: boolean;
+  restoreDisabledReason?: string;
 }
 
 const getVisibilityColor = (visibility: TemplateVisibility): 'default' | 'primary' | 'secondary' => {
@@ -50,11 +74,23 @@ export default function TemplateCard({
   template,
   onUseTemplate,
   onViewTemplate,
+  showTenantContext = false,
+  onDeleteTemplate,
+  onRestoreTemplate,
+  onEditTemplate,
+  onDuplicateTemplate,
+  onExportTemplate,
+  deleteDisabled = false,
+  deleteDisabledReason,
+  restoreDisabled = false,
+  restoreDisabledReason,
 }: TemplateCardProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const menuOpen = Boolean(menuAnchor);
 
-  const stopEventBubble = (e: PointerEvent) => {
+  const stopEventBubble = (e: PointerEvent | MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
   };
@@ -75,6 +111,23 @@ export default function TemplateCard({
     }
     navigate(`/templates/${template.id}`);
   };
+
+  const tenantDisplayValue =
+    template.tenant?.name || template.tenant?.slug || template.tenantId || '--';
+
+  const handleMenuOpen = (e: MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setMenuAnchor(e.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+  };
+
+  // Determine whether to show the overflow menu at all
+  const hasOverflowActions =
+    onDeleteTemplate || onRestoreTemplate || onEditTemplate || onDuplicateTemplate || onExportTemplate;
 
   return (
     <Card
@@ -102,7 +155,7 @@ export default function TemplateCard({
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <Typography
                 variant="body2"
-                sx={{ fontWeight: 700 }}
+                sx={{ fontWeight: 700, minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word' }}
                 data-testid={`template-card-${template.name}`}
               >
                 {template.name}
@@ -111,7 +164,7 @@ export default function TemplateCard({
                 label={getVisibilityLabel(template.visibility, t)}
                 color={getVisibilityColor(template.visibility)}
                 size="small"
-                sx={{ ml: 1 }}
+                sx={{ ml: 1, flexShrink: 0 }}
               />
             </Box>
             <Typography
@@ -152,6 +205,16 @@ export default function TemplateCard({
             <Typography variant="caption" sx={{ color: 'text.secondary', mt: 'auto' }}>
               {t("version")}: {template.version}
             </Typography>
+            {showTenantContext && (
+              <>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {t('tenant')}: {tenantDisplayValue}
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Owner: {template.createdBy || '--'}
+                </Typography>
+              </>
+            )}
             <Typography
               variant="caption"
               sx={{ color: 'text.secondary' }}
@@ -164,15 +227,121 @@ export default function TemplateCard({
           </Stack>
         </CardContent>
       </CardActionArea>
-      <CardActions sx={{ mt: 'auto', p: 2 }}>
-        {/* <Button
-          variant="contained"
-          color="primary"
-          size="small"
-          onClick={(e) => handleUseTemplate(e as unknown as PointerEvent)}
-        >
-          Use Template
-        </Button> */}
+      <CardActions sx={{ mt: 'auto', p: 2, gap: 1, justifyContent: 'flex-end' }}>
+        {hasOverflowActions && (
+          <>
+            <IconButton
+              size="small"
+              onClick={handleMenuOpen}
+              aria-label={t("more_actions", { defaultValue: "More actions" })}
+              data-testid={`template-card-more-actions-${template.id}`}
+              sx={{
+                border: '1px solid',
+                borderColor: 'borders.primary',
+                borderRadius: 1,
+              }}
+            >
+              <MoreVert fontSize="small" />
+            </IconButton>
+            <Menu
+              anchorEl={menuAnchor}
+              open={menuOpen}
+              onClose={handleMenuClose}
+              onClick={(e) => e.stopPropagation()}
+              anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'right',
+              }}
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+              }}
+              data-testid={`template-card-actions-menu-${template.id}`}
+            >
+              {onEditTemplate && (
+                <MenuItem
+                  onClick={() => {
+                    handleMenuClose();
+                    onEditTemplate();
+                  }}
+                  data-testid={`template-card-edit-${template.id}`}
+                >
+                  <ListItemIcon>
+                    <Edit fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{t("edit", { defaultValue: "Edit" })}</ListItemText>
+                </MenuItem>
+              )}
+              {onDuplicateTemplate && (
+                <MenuItem
+                  onClick={() => {
+                    handleMenuClose();
+                    onDuplicateTemplate();
+                  }}
+                  data-testid={`template-card-duplicate-${template.id}`}
+                >
+                  <ListItemIcon>
+                    <ContentCopy fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{t("duplicate", { defaultValue: "Duplicate" })}</ListItemText>
+                </MenuItem>
+              )}
+              {onExportTemplate && (
+                <MenuItem
+                  onClick={() => {
+                    handleMenuClose();
+                    onExportTemplate();
+                  }}
+                  data-testid={`template-card-export-${template.id}`}
+                >
+                  <ListItemIcon>
+                    <FileDownload fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{t("export", { defaultValue: "Export" })}</ListItemText>
+                </MenuItem>
+              )}
+              {onRestoreTemplate && (
+                <Tooltip title={restoreDisabled ? (restoreDisabledReason || "") : ""}>
+                  <span>
+                    <MenuItem
+                      onClick={() => {
+                        handleMenuClose();
+                        onRestoreTemplate();
+                      }}
+                      disabled={restoreDisabled}
+                      data-testid={`template-card-restore-${template.id}`}
+                    >
+                      <ListItemIcon>
+                        <Restore fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText>{t("restore", { defaultValue: "Restore" })}</ListItemText>
+                    </MenuItem>
+                  </span>
+                </Tooltip>
+              )}
+              {onDeleteTemplate && (
+                <Tooltip title={deleteDisabled ? (deleteDisabledReason || "") : ""}>
+                  <span>
+                    <MenuItem
+                      onClick={() => {
+                        handleMenuClose();
+                        onDeleteTemplate();
+                      }}
+                      disabled={deleteDisabled}
+                      data-testid={`template-card-delete-${template.id}`}
+                      sx={{ color: 'error.main' }}
+                    >
+                      <ListItemIcon>
+                        <Delete fontSize="small" color="error" />
+                      </ListItemIcon>
+                      <ListItemText>{t("delete")}</ListItemText>
+                    </MenuItem>
+                  </span>
+                </Tooltip>
+              )}
+            </Menu>
+          </>
+        )}
       </CardActions>
     </Card>
   );

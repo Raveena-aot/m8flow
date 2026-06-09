@@ -1,0 +1,329 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { ThemeProvider, createTheme } from "@mui/material/styles";
+import type React from "react";
+import TemplateGalleryPage from "./TemplateGalleryPage";
+
+vi.mock("@mui/icons-material", () => {
+  const Icon = ({ children }: { children?: React.ReactNode }) => <span>{children}</span>;
+  return {
+    ViewModule: Icon,
+    ViewList: Icon,
+    Visibility: Icon,
+    MoreVert: Icon,
+    Edit: Icon,
+    FileDownload: Icon,
+    Delete: Icon,
+    Restore: Icon,
+  };
+});
+
+vi.mock("react-router-dom", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("react-router-dom")>();
+  return {
+    ...actual,
+    useNavigate: vi.fn(() => vi.fn()),
+  };
+});
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string, opts?: { defaultValue?: string }) => opts?.defaultValue ?? key,
+  }),
+}));
+
+vi.mock("../hooks/useTemplates", () => ({
+  useTemplates: vi.fn(),
+}));
+
+vi.mock("../services/TemplateService", () => ({
+  default: {
+    deleteTemplate: vi.fn(() => Promise.resolve()),
+    restoreTemplate: vi.fn(() => Promise.resolve({})),
+  },
+}));
+
+vi.mock("../services/UserService", () => ({
+  default: {
+    getUserName: vi.fn(() => "tester"),
+    getPreferredUsername: vi.fn(() => "tester"),
+    isSuperAdmin: vi.fn(() => false),
+  },
+}));
+
+vi.mock("../services/HttpService", () => ({
+  default: {
+    HttpMethods: { GET: "GET" },
+    makeCallToBackend: vi.fn(),
+  },
+}));
+
+vi.mock("@spiffworkflow-frontend/hooks/PermissionService", () => ({
+  usePermissionFetcher: vi.fn(() => ({
+    ability: { can: () => true },
+    permissionsLoaded: true,
+  })),
+}));
+
+vi.mock("../components/TemplateFilters", () => ({
+  default: () => <div data-testid="template-filters-mock">filters</div>,
+}));
+
+vi.mock("../components/ImportTemplateModal", () => ({
+  default: () => null,
+}));
+
+vi.mock("@spiffworkflow-frontend/components/PaginationForTable", () => ({
+  default: ({ tableToDisplay }: { tableToDisplay: React.ReactNode }) => (
+    <div data-testid="pagination-mock">{tableToDisplay}</div>
+  ),
+}));
+
+vi.mock("../components/TemplateCard", () => ({
+  default: ({
+    template,
+    onDeleteTemplate,
+    onRestoreTemplate,
+    deleteDisabled,
+    restoreDisabled,
+  }: any) => (
+    <div data-testid={`template-card-${template.id}`}>
+      {onDeleteTemplate ? (
+        <button
+          data-testid={`template-card-delete-${template.id}`}
+          disabled={deleteDisabled}
+          onClick={onDeleteTemplate}
+          type="button"
+        >
+          Delete
+        </button>
+      ) : null}
+      {onRestoreTemplate ? (
+        <button
+          data-testid={`template-card-restore-${template.id}`}
+          disabled={restoreDisabled}
+          onClick={onRestoreTemplate}
+          type="button"
+        >
+          Restore
+        </button>
+      ) : null}
+    </div>
+  ),
+}));
+
+// Mock TemplateDeleteConfirmDialog to auto-confirm
+vi.mock("../components/TemplateDeleteConfirmDialog", () => ({
+  default: ({ open, onConfirm, onClose }: any) => {
+    if (!open) return null;
+    return (
+      <div data-testid="delete-confirm-dialog">
+        <button
+          data-testid="delete-template-confirm-button"
+          onClick={() => {
+            onConfirm();
+            onClose();
+          }}
+          type="button"
+        >
+          Confirm Delete
+        </button>
+      </div>
+    );
+  },
+  TemplateRestoreConfirmDialog: ({ open, onConfirm, onClose }: any) => {
+    if (!open) return null;
+    return (
+      <div data-testid="restore-confirm-dialog">
+        <button
+          data-testid="restore-template-confirm-button"
+          onClick={() => {
+            onConfirm();
+            onClose();
+          }}
+          type="button"
+        >
+          Confirm Restore
+        </button>
+      </div>
+    );
+  },
+}));
+
+import { useTemplates } from "../hooks/useTemplates";
+import HttpService from "../services/HttpService";
+import TemplateService from "../services/TemplateService";
+import { usePermissionFetcher } from "@spiffworkflow-frontend/hooks/PermissionService";
+
+const theme = createTheme();
+const fetchTemplatesMock = vi.fn();
+
+function makeTemplate(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 1,
+    templateKey: "template-a",
+    version: "V1",
+    name: "Template A",
+    description: null,
+    tags: [],
+    category: null,
+    tenantId: "tenant-a",
+    visibility: "TENANT",
+    files: [],
+    isPublished: false,
+    status: "draft",
+    createdAtInSeconds: 1700000000,
+    updatedAtInSeconds: 1700000100,
+    createdBy: "tester",
+    modifiedBy: "tester",
+    ...overrides,
+  };
+}
+
+function renderPage() {
+  return render(
+    <ThemeProvider theme={theme}>
+      <MemoryRouter>
+        <TemplateGalleryPage />
+      </MemoryRouter>
+    </ThemeProvider>,
+  );
+}
+
+describe("TemplateGalleryPage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(HttpService.makeCallToBackend).mockImplementation(() => {});
+    vi.mocked(usePermissionFetcher).mockReturnValue({
+      ability: { can: () => true } as any,
+      permissionsLoaded: true,
+    });
+    vi.mocked(useTemplates).mockReturnValue({
+      templates: [makeTemplate()],
+      pagination: { count: 1, total: 1, pages: 1 },
+      templatesLoading: false,
+      templateByIdLoading: false,
+      templateByKeyLoading: false,
+      error: null,
+      fetchTemplates: fetchTemplatesMock,
+      fetchTemplateById: vi.fn(),
+      fetchTemplateByKey: vi.fn(),
+    } as any);
+  });
+
+  it("calls delete API from table action and refreshes list", async () => {
+    renderPage();
+    // Switch to table view
+    fireEvent.click(screen.getByTestId("template-gallery-view-table"));
+    // Open overflow menu for the row
+    fireEvent.click(screen.getByTestId("template-gallery-more-actions-1"));
+    // Click delete in overflow menu
+    fireEvent.click(screen.getByTestId("template-row-delete-action"));
+    // The confirmation dialog opens – click confirm
+    fireEvent.click(screen.getByTestId("delete-template-confirm-button"));
+
+    await waitFor(() => {
+      expect(TemplateService.deleteTemplate).toHaveBeenCalledWith(1);
+    });
+    expect(fetchTemplatesMock).toHaveBeenCalled();
+  });
+
+  it("disables published delete for users without admin permission in table view", async () => {
+    // No admin permission (ability.can returns false for /m8flow/admin/templates)
+    vi.mocked(usePermissionFetcher).mockReturnValue({
+      ability: {
+        can: (method: string, uri: string) => {
+          if (uri === "/m8flow/admin/templates") return false;
+          return true;
+        },
+      } as any,
+      permissionsLoaded: true,
+    });
+    vi.mocked(useTemplates).mockReturnValue({
+      templates: [makeTemplate({ isPublished: true })],
+      pagination: { count: 1, total: 1, pages: 1 },
+      templatesLoading: false,
+      templateByIdLoading: false,
+      templateByKeyLoading: false,
+      error: null,
+      fetchTemplates: fetchTemplatesMock,
+      fetchTemplateById: vi.fn(),
+      fetchTemplateByKey: vi.fn(),
+    } as any);
+
+    renderPage();
+    fireEvent.click(screen.getByTestId("template-gallery-view-table"));
+
+    // Open overflow menu for the row
+    fireEvent.click(screen.getByTestId("template-gallery-more-actions-1"));
+
+    // The delete action in the menu should be disabled
+    const deleteAction = screen.getByTestId("template-row-delete-action");
+    expect(deleteAction).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("calls delete API from card action in active mode", async () => {
+    renderPage();
+    // Click delete on the card (opens confirmation dialog)
+    fireEvent.click(screen.getByTestId("template-card-delete-1"));
+    // Confirm the delete
+    fireEvent.click(screen.getByTestId("delete-template-confirm-button"));
+
+    await waitFor(() => {
+      expect(TemplateService.deleteTemplate).toHaveBeenCalledWith(1);
+    });
+  });
+
+  it("hides Edit but keeps Export for viewers (no PUT permission) in table view", async () => {
+    // Viewer: can view/export but not edit (no PUT on /m8flow/templates)
+    vi.mocked(usePermissionFetcher).mockReturnValue({
+      ability: {
+        can: (method: string, uri: string) => {
+          if (uri === "/m8flow/templates" && method === "PUT") return false;
+          return true;
+        },
+      } as any,
+      permissionsLoaded: true,
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByTestId("template-gallery-view-table"));
+    fireEvent.click(screen.getByTestId("template-gallery-more-actions-1"));
+
+    expect(screen.queryByTestId("template-row-edit-action")).not.toBeInTheDocument();
+    expect(screen.getByTestId("template-row-export-action")).toBeInTheDocument();
+  });
+
+  it("shows deleted mode restore action and calls restore API", async () => {
+    // Admin permission (ability.can returns true for all URIs)
+    vi.mocked(usePermissionFetcher).mockReturnValue({
+      ability: { can: () => true } as any,
+      permissionsLoaded: true,
+    });
+    vi.mocked(useTemplates).mockReturnValue({
+      templates: [makeTemplate({ isPublished: true, status: "published" })],
+      pagination: { count: 1, total: 1, pages: 1 },
+      templatesLoading: false,
+      templateByIdLoading: false,
+      templateByKeyLoading: false,
+      error: null,
+      fetchTemplates: fetchTemplatesMock,
+      fetchTemplateById: vi.fn(),
+      fetchTemplateByKey: vi.fn(),
+    } as any);
+
+    renderPage();
+    fireEvent.click(screen.getByTestId("template-gallery-mode-deleted"));
+    // Click restore on the card (opens confirmation dialog)
+    fireEvent.click(screen.getByTestId("template-card-restore-1"));
+    // Confirm the restore
+    fireEvent.click(screen.getByTestId("restore-template-confirm-button"));
+
+    await waitFor(() => {
+      expect(TemplateService.restoreTemplate).toHaveBeenCalledWith(1);
+    });
+    expect(fetchTemplatesMock).toHaveBeenCalled();
+  });
+});
