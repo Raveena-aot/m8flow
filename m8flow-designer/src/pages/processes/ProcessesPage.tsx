@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
@@ -20,6 +21,7 @@ import {
   type ProcessInstanceOwnerOption,
 } from '@/lib/processInstancesApi';
 import { useActiveTenant, useCapabilities } from '@/components/session/hooks';
+import i18n from '@/i18n';
 import { CreateProcessModelDialog } from './components/CreateProcessModelDialog';
 import { ProcessGroupsPicker } from './components/ProcessGroupsPicker';
 import { ProcessesModelsList } from './components/ProcessesModelsList';
@@ -31,17 +33,27 @@ import { startErrorMessage } from '@/lib/startProcessError';
  * Super-admin must pick a concrete tenant (no All-Tenants catalog merge).
  */
 export default function ProcessesPage() {
+  const { t } = useTranslation();
   const { scopedTenantId, isSuperAdmin, needsTenantForWrite } = useActiveTenant();
   // All Tenants renders the merged cross-tenant catalog instead of a gate.
   const allTenants = isSuperAdmin && !scopedTenantId;
-  // Lifecycle writes gate on canManageProcessModels, NOT canManageProcesses:
-  // the two answer different permission checks, and only the process-model
-  // PUT hint keeps Publish hidden from roles the PUT would 403 (M8F-508).
-  const { canManageProcesses, canManageProcessModels, canStartProcesses } = useCapabilities();
+  const {
+    canManageProcessModels,
+    canStartProcesses,
+    canCreateProcessModels,
+    canDeleteProcessModels,
+    canCreateProcessGroups,
+    canUpdateProcessGroups,
+    canDeleteProcessGroups,
+  } = useCapabilities();
   // M8F-479: super-admin may write catalog when a concrete tenant is selected.
   // Catalog writes must target one tenant, so they stay disabled under
   // All Tenants even though the list itself renders.
-  const canManageCatalog = Boolean(canManageProcesses) && !needsTenantForWrite;
+  const canCreateModel = canCreateProcessModels && !needsTenantForWrite;
+  const canDeleteModel = canDeleteProcessModels && !needsTenantForWrite;
+  const canCreateGroup = canCreateProcessGroups && !needsTenantForWrite;
+  const canUpdateGroup = canUpdateProcessGroups && !needsTenantForWrite;
+  const canDeleteGroup = canDeleteProcessGroups && !needsTenantForWrite;
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -95,7 +107,7 @@ export default function ProcessesPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load process models');
+          setError(err instanceof Error ? err.message : i18n.t('processes.page.loadModelsFailed'));
           setModels([]);
         }
       })
@@ -150,7 +162,7 @@ export default function ProcessesPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setGroupsError(err instanceof Error ? err.message : 'Failed to load process groups');
+          setGroupsError(err instanceof Error ? err.message : i18n.t('processes.page.loadGroupsFailed'));
           setGroups([]);
         }
       })
@@ -167,7 +179,7 @@ export default function ProcessesPage() {
 
   const scopeLabel = useMemo(() => {
     if (!groupFilter) {
-      return 'All groups';
+      return t('processes.allGroups');
     }
     const fromGroups = groups.find((g) => g.id === groupFilter);
     if (fromGroups) {
@@ -175,7 +187,7 @@ export default function ProcessesPage() {
     }
     const match = models.find((m) => m.group_id === groupFilter);
     return match?.group_display_name || groupFilter;
-  }, [groupFilter, models, groups]);
+  }, [groupFilter, models, groups, t]);
 
   function setGroup(groupId: string | null) {
     setSearchParams(
@@ -283,12 +295,12 @@ export default function ProcessesPage() {
           navigate(`/processes/${encodeProcessModelId(model.id)}${suffix}`);
         }}
         onStartModel={canStartProcesses && !needsTenantForWrite ? handleStartModel : undefined}
-        onDeleteModel={canManageCatalog ? handleDeleteModel : undefined}
-        onCreateModel={canManageCatalog ? () => setCreateOpen(true) : undefined}
+        onDeleteModel={canDeleteModel ? handleDeleteModel : undefined}
+        onCreateModel={canCreateModel ? () => setCreateOpen(true) : undefined}
         onChangeModelStatus={
           canManageProcessModels && !needsTenantForWrite ? handleChangeModelStatus : undefined
         }
-        onCreateGroup={canManageCatalog ? () => openGroups(true) : undefined}
+        onCreateGroup={canCreateGroup ? () => openGroups(true) : undefined}
       />
       <CreateProcessModelDialog
         open={createOpen}
@@ -296,7 +308,7 @@ export default function ProcessesPage() {
         scopedTenantId={scopedTenantId}
         defaultGroupId={groupFilter}
         onCreateProcessGroup={
-          canManageCatalog
+          canCreateGroup
             ? () => {
                 setCreateOpen(false);
                 openGroups(true);
@@ -315,7 +327,9 @@ export default function ProcessesPage() {
         loading={groupsLoading}
         error={groupsError}
         selectedGroupId={groupFilter}
-        canManage={canManageCatalog}
+        canCreate={canCreateGroup}
+        canUpdate={canUpdateGroup}
+        canDelete={canDeleteGroup}
         startInCreateMode={groupsCreateMode}
         onClose={closeGroups}
         onSelectAll={() => {
@@ -326,9 +340,9 @@ export default function ProcessesPage() {
           setGroup(groupId);
           setGroupsOpen(false);
         }}
-        onCreateGroup={canManageCatalog ? handleCreateGroup : undefined}
-        onUpdateGroup={canManageCatalog ? handleUpdateGroup : undefined}
-        onDeleteGroup={canManageCatalog ? handleDeleteGroup : undefined}
+        onCreateGroup={canCreateGroup ? handleCreateGroup : undefined}
+        onUpdateGroup={canUpdateGroup ? handleUpdateGroup : undefined}
+        onDeleteGroup={canDeleteGroup ? handleDeleteGroup : undefined}
       />
     </main>
   );

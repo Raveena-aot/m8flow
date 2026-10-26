@@ -6,7 +6,9 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
+import i18n from '@/i18n';
 import {
   ApiError,
   createProcessModelFile,
@@ -85,6 +87,7 @@ export default function ProcessModelModelerPage() {
     processModelId: string;
     fileName: string;
   }>();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { scopedTenantId, needsTenantForWrite } = useActiveTenant();
   const [searchParams] = useSearchParams();
@@ -92,7 +95,13 @@ export default function ProcessModelModelerPage() {
   // All Tenants (model ids collide across tenants), so editing works once
   // arrived from a row; saving without any tenant stays disabled below.
   const tenantId = searchParams.get('tenantId') || scopedTenantId;
-  const { canManageProcesses, canManageProcessModels, canStartProcesses } = useCapabilities();
+  const {
+    canManageProcessModels,
+    canStartProcesses,
+    canCreateProcessModelFiles,
+    canUpdateProcessModelFiles,
+    canDeleteProcessModelFiles,
+  } = useCapabilities();
   // M8F-479: super-admin may edit catalog files when a concrete tenant is selected.
   /** Tenant the backend resolved this model to, for All-Tenants navigation
    * that arrived without an explicit ?tenantId. */
@@ -101,7 +110,13 @@ export default function ProcessModelModelerPage() {
   // A regular user has no sidebar scope (their tenant is the cookie), so only
   // an All-Tenants super-admin with no resolved tenant is blocked from saving.
   const needsTenantToWrite = needsTenantForWrite && !effectiveTenantId;
-  const canManageCatalog = Boolean(canManageProcesses) && !needsTenantToWrite;
+  // Starting process instances and editing the process definition are
+  // separate backend capabilities. Viewers may start published processes,
+  // but must still receive the read-only modeler surface.
+  const canManageCatalog = Boolean(canUpdateProcessModelFiles) && !needsTenantToWrite;
+  const canCreateModelFile = canCreateProcessModelFiles && !needsTenantToWrite;
+  const canDeleteModelFile = canDeleteProcessModelFiles && !needsTenantToWrite;
+  const canSetPrimary = canManageProcessModels && !needsTenantToWrite;
   const modifiedId = processModelId ?? '';
   const file = fileName ?? '';
   const canvasRef = useRef<DiagramCanvasHandle>(null);
@@ -179,7 +194,7 @@ export default function ProcessModelModelerPage() {
           return;
         }
         setNotFound(false);
-        setError(err instanceof Error ? err.message : 'Failed to load file');
+        setError(err instanceof Error ? err.message : i18n.t('modeler.page.loadFileFailed'));
       })
       .finally(() => {
         if (!cancelled) {
@@ -451,7 +466,7 @@ export default function ProcessModelModelerPage() {
       const current = canvasRef.current ? (await canvasRef.current.saveXML()).xml : xml;
       setViewXml(current ?? '');
     } catch (err) {
-      setViewXmlError(err instanceof Error ? err.message : 'Failed to export XML');
+      setViewXmlError(err instanceof Error ? err.message : t('modeler.page.exportXmlFailed'));
     }
   }
 
@@ -487,7 +502,7 @@ export default function ProcessModelModelerPage() {
           ? err.serverMessage
           : err instanceof Error
             ? err.message
-            : 'Failed to publish',
+            : t('modeler.page.publishFailed'),
       );
     } finally {
       setLifecycleBusy(null);
@@ -524,8 +539,8 @@ export default function ProcessModelModelerPage() {
   // back to its detail page (old-UI parity). Labels fall back to raw id
   // segments until (or if never) the detail fetch resolves.
   const groupId = groupInfo?.id ?? modifiedId.split(':')[0] ?? '';
-  const groupLabel = groupInfo?.displayName || groupId || 'Process group';
-  const modelLabel = modelDisplayName || modifiedId.split(':').pop() || 'Process model';
+  const groupLabel = groupInfo?.displayName || groupId || t('modeler.page.processGroupFallback');
+  const modelLabel = modelDisplayName || modifiedId.split(':').pop() || t('modeler.page.processModelFallback');
   // Carry an explicit ?tenantId through, same as the Processes list does.
   const explicitTenantId = searchParams.get('tenantId');
   const modelHref = `/processes/${modifiedId}${
@@ -542,7 +557,7 @@ export default function ProcessModelModelerPage() {
             linkClassName="text-info font-normal"
             lastClassName="min-w-0 truncate font-mono"
             items={[
-              { label: 'Process Groups', href: '/processes' },
+              { label: t('modeler.page.processGroups'), href: '/processes' },
               {
                 label: groupLabel,
                 href: groupId ? `/processes?group=${encodeURIComponent(groupId)}` : '/processes',
@@ -564,7 +579,9 @@ export default function ProcessModelModelerPage() {
         <ModelerFileToolbar
           savePhase={savePhase}
           fileLoaded={xml != null}
-          canManage={canManageCatalog}
+          canCreateFile={canCreateModelFile}
+          canDeleteFile={canDeleteModelFile}
+          canSetPrimary={canSetPrimary}
           isPrimary={isPrimary}
           isBpmn={isBpmn}
           isDiagram={isDiagram}
@@ -601,7 +618,7 @@ export default function ProcessModelModelerPage() {
           <div className="flex-none px-6 pt-3">
             <NotPrimaryBanner
               primaryFileName={primaryFileName as string}
-              onSetPrimary={canManageCatalog ? () => void handleSetPrimary() : undefined}
+              onSetPrimary={canSetPrimary ? () => void handleSetPrimary() : undefined}
               submitting={settingPrimary}
             />
           </div>
@@ -609,11 +626,11 @@ export default function ProcessModelModelerPage() {
         <div className="flex min-h-0 flex-1 flex-col">
           {loading ? (
             <p className="p-6 text-sm text-muted-foreground" aria-busy="true">
-              Loading file…
+              {t('modeler.page.loadingFile')}
             </p>
           ) : notFound ? (
             <p className="p-6 text-sm text-muted-foreground" role="status">
-              File not found.
+              {t('modeler.page.fileNotFound')}
             </p>
           ) : error ? (
             <p className="p-6 text-sm text-destructive" role="alert">
@@ -672,7 +689,7 @@ export default function ProcessModelModelerPage() {
           />
         </Suspense>
       ) : null}
-      {canManageCatalog ? (
+      {canCreateModelFile ? (
         <AddProcessModelFileDialog
           open={newFileOpen}
           onClose={() => setNewFileOpen(false)}

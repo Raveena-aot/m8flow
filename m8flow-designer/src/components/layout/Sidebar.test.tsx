@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { createMemoryRouter, MemoryRouter, Route, Routes, RouterProvider } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import i18n from '@/i18n';
 import { Sidebar } from './Sidebar';
 
 afterEach(() => {
@@ -59,6 +60,33 @@ describe('Sidebar live nav', () => {
     expect(document.documentElement).toHaveAttribute('lang', 'en-US');
   });
 
+  it('switches the sidebar to Spanish and saves the choice', async () => {
+    const router = createMemoryRouter([{ path: '/', element: <Sidebar /> }], { initialEntries: ['/'] });
+    render(<RouterProvider router={router} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Locale' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Español/ }));
+
+    // Spanish is a lazy chunk, so the sidebar re-renders once it has loaded.
+    expect(await screen.findByRole('link', { name: 'Inicio' })).toHaveAttribute('href', '/');
+    expect(document.documentElement).toHaveAttribute('lang', 'es');
+    expect(window.localStorage.getItem('m8flow_locale')).toBe('es');
+    fireEvent.click(screen.getByRole('button', { name: 'Idioma' }));
+    expect(screen.getByRole('menuitemradio', { name: /Español/ })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it.each([
+    ['de-DE', /Deutsch/],
+    ['es-ES', /Español/],
+  ])('checks the supported language when %s is requested', async (regional, option) => {
+    await i18n.changeLanguage(regional);
+    const router = createMemoryRouter([{ path: '/', element: <Sidebar /> }], { initialEntries: ['/'] });
+    render(<RouterProvider router={router} />);
+
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('shell.locale.label') }));
+    expect(screen.getByRole('menuitemradio', { name: option })).toHaveAttribute('aria-checked', 'true');
+  });
+
   it('renders Home and Processes as links inside a router', () => {
     const router = createMemoryRouter(
       [
@@ -81,14 +109,13 @@ describe('Sidebar live nav', () => {
       'href',
       '/process-instances',
     );
-    // Templates is a live Setup child; Configuration is inert until secrets
-    // read is granted (showConfiguration).
+    // Templates is a live Setup child. Configuration is omitted without
+    // secrets-read permission; it is not shown as a disabled placeholder.
     expect(screen.getByRole('link', { name: 'Templates' })).toHaveAttribute(
       'href',
       '/templates',
     );
-    expect(screen.getByText('Configuration')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Configuration' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Configuration')).not.toBeInTheDocument();
     expect(screen.getByText('Connectors')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Connectors' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Tenants' })).not.toBeInTheDocument();
@@ -133,7 +160,7 @@ describe('Sidebar live nav', () => {
     expect(screen.queryByRole('button', { name: /Acme Corp/i })).not.toBeInTheDocument();
   });
 
-  it('renders the interactive TenantSwitcher (ticket 06) for >=2 org memberships', () => {
+  it('renders the interactive TenantSwitcher (ticket 06) for >=2 org memberships', async () => {
     const router = createMemoryRouter(
       [
         {
@@ -153,12 +180,12 @@ describe('Sidebar live nav', () => {
     );
     render(<RouterProvider router={router} />);
 
-    const trigger = screen.getByTestId('nav-tenant-name');
-    expect(trigger).toHaveTextContent('Acme Corp');
-    expect(trigger.tagName).toBe('BUTTON');
+    // TenantSwitcher is lazy; the read-only chip stands in until it loads.
+    const trigger = await screen.findByRole('button', { name: /Acme Corp/ });
+    expect(trigger).toHaveAttribute('data-testid', 'nav-tenant-name');
   });
 
-  it('prefers the super-admin tenant selector over the active-tenant badge', () => {
+  it('prefers the super-admin tenant selector over the active-tenant badge', async () => {
     const router = createMemoryRouter(
       [
         {
@@ -176,7 +203,7 @@ describe('Sidebar live nav', () => {
     );
     render(<RouterProvider router={router} />);
 
-    expect(screen.getByRole('combobox', { name: /Tenant/ })).toBeInTheDocument();
+    expect(await screen.findByRole('combobox', { name: /Tenant/ })).toBeInTheDocument();
     expect(screen.queryByTestId('nav-tenant-name')).not.toBeInTheDocument();
   });
 

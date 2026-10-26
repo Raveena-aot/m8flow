@@ -1,16 +1,19 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useActiveTenant, useCapabilities } from '@/components/session/hooks';
 import { Card } from '@/components/ui/card';
 
 export function useConfigurationContext() {
   const { scopedTenantId, isSuperAdmin, needsTenant, needsTenantForWrite } = useActiveTenant();
-  const { canReadSecrets, canManageSecrets } = useCapabilities();
+  const { canReadSecrets, canCreateSecrets, canUpdateSecrets, canDeleteSecrets } = useCapabilities();
   return {
     scopedTenantId,
     isSuperAdmin,
     canReadSecrets,
-    canManageSecrets,
+    canCreateSecrets,
+    canUpdateSecrets,
+    canDeleteSecrets,
     needsTenant,
     needsTenantForWrite,
     /** All-Tenants super-admin read: show the owning tenant per row. */
@@ -19,16 +22,16 @@ export function useConfigurationContext() {
 }
 
 export function ConfigurationUnavailable({ title }: { title: string }) {
+  const { t } = useTranslation();
   return (
     <main className="flex-1 px-11 py-10">
       <div className="mb-7">
         <h1 className="font-display text-[32px] font-semibold tracking-tight">{title}</h1>
       </div>
       <Card variant="bordered" className="max-w-lg p-6">
-        <p className="text-[15px] font-semibold text-foreground">Not available</p>
+        <p className="text-[15px] font-semibold text-foreground">{t('configuration.gate.unavailableTitle')}</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Secrets are for integrators, viewers, and tenant admins. Your role cannot
-          list or manage them.
+          {t('configuration.gate.unavailableBody')}
         </p>
       </Card>
     </main>
@@ -36,16 +39,16 @@ export function ConfigurationUnavailable({ title }: { title: string }) {
 }
 
 export function ConfigurationNeedsTenant({ title }: { title: string }) {
+  const { t } = useTranslation();
   return (
     <main className="flex-1 px-11 py-10">
       <div className="mb-7">
         <h1 className="font-display text-[32px] font-semibold tracking-tight">{title}</h1>
       </div>
       <Card variant="bordered" className="max-w-lg p-6">
-        <p className="text-[15px] font-semibold text-foreground">Choose a tenant</p>
+        <p className="text-[15px] font-semibold text-foreground">{t('configuration.gate.needsTenantTitle')}</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Secrets are tenant-scoped. Select a concrete tenant in the sidebar —
-          All Tenants is not supported here.
+          {t('configuration.gate.needsTenantBody')}
         </p>
       </Card>
     </main>

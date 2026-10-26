@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 import { getCurrentUser, logout } from '@/lib/auth';
@@ -19,12 +20,13 @@ function celeryWorkersUrl(baseUrl: string): string {
  * chrome — it no longer provides an outlet context.
  */
 export function AppShell() {
+  const { t } = useTranslation();
   const user = getCurrentUser();
   const { selectedTenantId, isSuperAdmin: superAdmin, setSelectedTenant } = useActiveTenant();
   const {
     canReadSecrets,
     canReadConnectors,
-    canReviewTasks,
+    canSubmitTaskReviews,
     canReadTaskReview,
     canReadMcpConnection,
     canReadMcpTools,
@@ -32,19 +34,21 @@ export function AppShell() {
     canReadNatsMonitoring,
     canReadNatsEvents,
     canReadTemplates,
-    canManageTenant,
+    canAccessTenantManagement,
     canReadProcesses,
     canReadProcessInstances,
     canReadNatsApiKeys,
     status,
   } = useCapabilities();
-  // Work tasks (canReviewTasks) or just read the inbox (super-admin monitoring).
-  const canOpenTaskReview = canReviewTasks || canReadTaskReview;
+  // Submit permission grants task work; GET permission supports read-only monitoring.
+  const canOpenTaskReview = canSubmitTaskReviews || canReadTaskReview;
   const { pathname } = useLocation();
   // NATS page: broker monitoring (super-admin) and own-tenant event history (tenant-admin).
   const canUseNats = canReadNatsMonitoring || canReadNatsEvents;
   const routePermission = pathname.startsWith('/task-review')
     ? canOpenTaskReview
+    : pathname.startsWith('/tenant-management')
+      ? canAccessTenantManagement
     : pathname.startsWith('/messages')
       ? canReadMessages
     : pathname.startsWith('/system/nats')
@@ -68,14 +72,14 @@ export function AppShell() {
               : true;
   const { tenants, organizationMemberships, activeTenantLabel } = useTenantRegistry();
 
-  const userLabel = user?.username ?? user?.email ?? 'unknown user';
+  const userLabel = user?.username ?? user?.email ?? t('shell.profile.unknownUser');
   const tenantOptions =
     selectedTenantId && !tenants.some((t) => t.id === selectedTenantId)
       ? [{ id: selectedTenantId, name: selectedTenantId }, ...tenants]
       : tenants;
 
-  if (status === 'loading') return <p role="status">Loading permissions…</p>;
-  if (status === 'error') return <p role="alert">Unable to load permissions. Reload to try again.</p>;
+  if (status === 'loading') return <p role="status">{t('shell.permissions.loading')}</p>;
+  if (status === 'error') return <p role="alert">{t('shell.permissions.loadFailed')}</p>;
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -103,7 +107,7 @@ export function AppShell() {
         showMcpTools={canReadMcpTools}
         showMessages={canReadMessages}
         showTenantsNav={superAdmin}
-        showTenantManagement={canManageTenant && !superAdmin}
+        showTenantManagement={canAccessTenantManagement && !superAdmin}
       />
       {routePermission ? <Outlet /> : <Navigate to="/" replace />}
     </div>

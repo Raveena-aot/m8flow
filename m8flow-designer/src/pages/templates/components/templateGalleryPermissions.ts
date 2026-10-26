@@ -1,9 +1,13 @@
+import i18n from '@/i18n';
 import type { Template } from '@/lib/templatesApi';
 
 export type TemplateGalleryMode = 'active' | 'deleted';
 
 export type TemplateGalleryActor = {
   canManageTemplates?: boolean;
+  canImportTemplates?: boolean;
+  canDeleteTemplates?: boolean;
+  canRestoreTemplates?: boolean;
   isSuperAdmin: boolean;
   /** Tenant-admin of the active tenant — not super-admin (read-only). */
   canManageTenant: boolean;
@@ -11,23 +15,23 @@ export type TemplateGalleryActor = {
 };
 
 export function canDeleteGalleryTemplate(template: Template, actor: TemplateGalleryActor): boolean {
-  if (actor.canManageTemplates === false) return false;
+  if (actor.canDeleteTemplates === false || actor.canManageTemplates === false) return false;
   if (actor.isSuperAdmin) return false;
   if (template.isPublished) return actor.canManageTenant;
   return actor.canManageTenant || (!!actor.currentUsername && template.createdBy === actor.currentUsername);
 }
 
 export function deleteDisabledReason(template: Template, actor: TemplateGalleryActor): string {
-  if (actor.isSuperAdmin) return 'Not available to super-admin';
+  if (actor.isSuperAdmin) return i18n.t('templates.notAvailableToSuperAdmin');
   if (template.isPublished && !actor.canManageTenant) {
-    return 'Insufficient permissions to delete published templates.';
+    return i18n.t('templates.permissions.deletePublished');
   }
   if (!actor.canManageTenant && actor.currentUsername !== template.createdBy) {
-    return 'Only the template creator or an admin can delete this draft template.';
+    return i18n.t('templates.permissions.deleteDraft');
   }
   return '';
 }
 
 export function canRestoreGalleryTemplate(actor: TemplateGalleryActor): boolean {
-  return !actor.isSuperAdmin && actor.canManageTenant;
+  return !actor.isSuperAdmin && actor.canManageTenant && actor.canRestoreTemplates !== false;
 }
