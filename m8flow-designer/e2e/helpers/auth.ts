@@ -65,8 +65,13 @@ export function masterBootstrapAdminCredentials(): DesignerPersona {
 
 export const SELECTED_TENANT_COOKIE = 'm8flow_selected_tenant';
 
+/** Designer origin under test (local dev server, or a deployed instance via M8FLOW_DESIGNER_BASE_URL). */
+const DESIGNER_ORIGIN = new URL(process.env.M8FLOW_DESIGNER_BASE_URL ?? 'http://localhost:6853').origin;
+
 function isDesignerOrigin(url: URL): boolean {
-  return url.origin.includes('localhost:6853');
+  // On a deployed instance Keycloak can share the designer's domain, so a
+  // Keycloak page (/realms/...) must not count as being back on designer.
+  return url.origin === DESIGNER_ORIGIN && !/\/realms\//.test(url.pathname);
 }
 
 /** Clear app cookies + storage so each journey starts unauthenticated. */
@@ -108,7 +113,9 @@ export async function cookieValue(page: Page, name: string): Promise<string | un
  * (TenantSelectPage). Platform admin is offered as a link on that page.
  */
 export async function expectSharedRealmKeycloakLogin(page: Page, timeout = 30_000): Promise<void> {
-  await page.waitForURL(/\/realms\/m8flow\//, { timeout });
+  // toHaveURL keeps checking the address instead of waiting on one page load,
+  // so a redirect that cancels a load in between does not fail the test.
+  await expect(page).toHaveURL(/\/realms\/m8flow\//, { timeout });
   await expectCombinedKeycloakLoginPage(page);
   await expect(page.locator('#m8f-master-login-button')).toBeVisible({ timeout });
 }
@@ -161,10 +168,12 @@ async function waitAfterKeycloakCredentials(page: Page, persona: DesignerPersona
 async function openSharedRealmLogin(page: Page): Promise<void> {
   await clearDesignerSession(page);
   // The app redirects a logged-out '/' to Keycloak straight away, which can
-  // interrupt page.goto itself. That redirect is exactly what we want, so
-  // ignore the interruption and let expectSharedRealmKeycloakLogin wait for it.
-  await page.goto('/').catch((error: unknown) => {
-    if (!/interrupted by another navigation/i.test(String(error))) throw error;
+  // interrupt page.goto itself (reported as "interrupted by another navigation"
+  // or, on some machines, net::ERR_ABORTED). That redirect is exactly what we
+  // want, so ignore it and let expectSharedRealmKeycloakLogin check that the
+  // login page really opened.
+  await page.goto('/', { waitUntil: 'commit' }).catch((error: unknown) => {
+    if (!/interrupted by another navigation|ERR_ABORTED/i.test(String(error))) throw error;
   });
   await expectSharedRealmKeycloakLogin(page);
 }

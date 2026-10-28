@@ -164,13 +164,40 @@ paths it owns and the specs that cover it.
 |---|---|---|---|---|
 | `auth` | Login for every role (LGN), Platform Admin access restricted to super-admin, tenant selection, invitations, logout (PAR) | P0 | `login.spec.ts`, `identity-auth-parity.spec.ts` | Covered |
 | `processes` | Processes page: list, search, filters, sort, create group/model, list actions, edit/delete group, form validation and page text (CHK, PRC-01..15, PRC-24..32, PRC-40, PRC-42..48). Process model page: status actions, Edit in modeler, Start, Copy, Save as template, instances, files, tests, page text and form validation (CHK-05, PRC-16..23, PRC-33..39, PRC-49..55) | P1 | `processes.spec.ts`, `process-models.spec.ts` | Covered |
+| `process-flow` | Process lifecycle end to end (FLW-01..58): start by submitter/editor/admin, Task Review assignment by lane, completion, instance status, Home counts (FLW-01..05); creation by default model, BPMN upload, sample templates and ZIP import, invalid files (FLW-06..16); assignment, access and form validation (FLW-17..35); multi-step, gateways, errors, terminate (FLW-36..41, 58); instances and Home counts (FLW-42..49, 57); permissions, tenants, reliability (FLW-50..56). Shared helpers: `helpers/processFlow.ts` | P0 | `e2e-flow*.spec.ts` (6 files) | Covered |
 | `modeler` | Open/edit/save diagrams and files; task configuration (user task forms, service task connectors, DMN); unsupported elements hidden | P1 | `modeler*.spec.ts` (8 files) | Covered |
-| `home` | Dashboard counts, My tasks, recent instances | P0 | – | Planned |
-| `task-review` | Work and submit tasks | P0 | – | Planned |
-| `process-instances` | Instance list/detail, suspend/resume/retry/terminate | P1 | – | Planned |
-| `templates` | Templates, create model from template | P1 | – | Planned |
+| `home` | Dashboard counts, My tasks, recent instances | P0 | `e2e-flow.spec.ts` (counts, FLW-02/03/05) | Partly covered |
+| `task-review` | Work and submit tasks | P0 | `e2e-flow.spec.ts` (inbox, open, required field, submit: FLW-02/03) | Partly covered |
+| `process-instances` | Instance list/detail, suspend/resume/retry/terminate | P1 | `e2e-flow.spec.ts` (Complete status in the list, FLW-04) | Partly covered |
+| `templates` | Templates, create model from template | P1 | `e2e-flow-create.spec.ts` (sample templates, ZIP import, FLW-08..12) | Partly covered |
 | `configuration` | Secrets, connectors, API keys | P1 | – | Planned |
 | `monitoring` | NATS, messages, MCP connection pages | P2 | – | Planned |
+
+### Process-flow tests (`e2e-flow*.spec.ts`)
+
+- **Fresh environment**: every prerequisite (group, models, files, templates, instances) is created by the
+  test run through the API; nothing existing is used except the seeded users and, for FLW-08..10, the sample
+  templates (those tests are skipped with a message when templates are not loaded). Names and ids carry a
+  per-run stamp, so repeated runs never clash.
+- **Independent tests**: each test starts its own instance. Tests that check a list or count by model name
+  use `flow.fresh(browser, key)`, a copy of the model just for that test (safe on retry).
+- **Setup through the API, checks through the UI**: the UI is used only for the step a test checks.
+  Test diagrams and forms are built in code (`flowBpmn`, `formSchema` in `helpers/processFlow.ts`); lanes are
+  Keycloak groups (Submitters, Approvers, Administrators, Designers).
+- **Sessions**: one logged-in page per role and worker (`rolePage` / `withPage`), re-checked every 3 minutes.
+- **No fixed waits**: task creation and status changes are polled (`waitForTask`, `waitForStatus`, max 30 s)
+  with messages that say what was last seen.
+- **Cleanup**: `useFlowCatalog` deletes this run's instances, models, templates and group in `afterAll`
+  (best effort: a cleanup problem is logged, it does not fail a test). FLW-56 checks the cleanup itself.
+- **Diagnostics**: each test logs a result block with ids and expected/actual; started instances are added
+  as annotations; a failed test gets `browser-diagnostics.txt` (console errors, failed requests, 5xx
+  responses; URLs without query strings).
+- **Tags**: `@smoke`, `@workflow`, `@permissions`, `@validation`, `@import`, `@reliability`, `@counts`.
+  Run a group with `npx playwright test --grep @smoke`. `@counts` tests compare Home counts before and after
+  an action, so they must not run next to other workers: run them with `--workers=1`, or leave them out of a
+  parallel run with `--grep-invert @counts`.
+- **Soft checks**: a possible product defect is checked with `expect.soft` and a message starting with
+  `POSSIBLE DEFECT`, so the test is reported as failed without hiding the rest of its checks.
 
 Every spec must be listed under a module in `modules.json`; test selection
 fails if a spec is missing from it.
