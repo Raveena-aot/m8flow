@@ -456,6 +456,11 @@ async function deleteKeycloakUsers(
   return deleted;
 }
 
+/** Deletes the shared-realm Keycloak user with exactly this user name. Returns true when one was deleted. */
+export async function deleteKeycloakUser(page: Page, username: string): Promise<boolean> {
+  return (await deleteKeycloakUsers(page, username, (u) => u.username === username)) > 0;
+}
+
 async function bestEffort(label: string, action: () => Promise<unknown>): Promise<void> {
   try {
     await action();

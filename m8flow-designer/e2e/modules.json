@@ -212,7 +212,8 @@
       "title": "Templates",
       "priority": "P1",
       "specs": [
-        "e2e/e2e-flow-create.spec.ts"
+        "e2e/e2e-flow-create.spec.ts",
+        "e2e/rbac-templates.spec.ts"
       ],
       "paths": [
         "m8flow-designer/src/pages/templates/**",
@@ -223,7 +224,7 @@
       "name": "configuration",
       "title": "Secrets, connectors and API keys",
       "priority": "P1",
-      "specs": [],
+      "specs": ["e2e/rbac-configuration.spec.ts"],
       "paths": [
         "m8flow-designer/src/pages/configuration/**",
         "m8flow-designer/src/pages/connectors/**",
@@ -239,6 +240,29 @@
         "m8flow-designer/src/pages/nats/**",
         "m8flow-designer/src/pages/messages/**",
         "m8flow-designer/src/pages/mcp-connection/**"
+      ]
+    },
+    {
+      "name": "rbac",
+      "title": "Role-based access: menus, pages and actions per role, groups and tenants (M8F-702)",
+      "priority": "P0",
+      "specs": [
+        "e2e/rbac-navigation.spec.ts",
+        "e2e/rbac-processes.spec.ts",
+        "e2e/rbac-tasks.spec.ts",
+        "e2e/rbac-configuration.spec.ts",
+        "e2e/rbac-tenant-management.spec.ts",
+        "e2e/rbac-templates.spec.ts"
+      ],
+      "paths": [
+        "m8flow-backend/src/m8flow_backend/authorization/**",
+        "m8flow-backend/src/m8flow_backend/auth/**",
+        "m8flow-backend/src/m8flow_backend/routes/capabilities_controller.py",
+        "m8flow-backend/src/m8flow_backend/routes/tenant_role_controller.py",
+        "m8flow-backend/src/m8flow_backend/services/tenant_role_service.py",
+        "m8flow-designer/src/components/session/**",
+        "m8flow-designer/e2e/helpers/rbac.ts",
+        "m8flow-designer/e2e/rbac-*.spec.ts"
       ]
     }
   ]
